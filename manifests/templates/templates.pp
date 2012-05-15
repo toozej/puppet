@@ -24,14 +24,10 @@ node core {
 
 node base inherits core {
   include bash
-  include mosh
-  include pil
-  include wok
 }
 
 node server inherits base {
   include apache2
-  include weechat
 }
 
 node gui inherits base {
