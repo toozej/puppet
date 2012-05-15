@@ -1,17 +1,12 @@
-$USER = "ngoke"
-$USER_DIR = "/home/ngoke"
-$PUPPET_DIR = "/home/ngoke/Code/puppet-ngokevin"
+$USER = "james"
+$USER_DIR = "/home/james"
+$PUPPET_DIR = "/home/james/puppet"
 
-$NAME = "Kevin Ngo"
-$EMAIL = "ktngo09@gmail.com"
-
-node "mozzarella" inherits laptop {
+node "diatto" inherits laptop {
     include gnome
     include compiz
     include firefox
-    include nvidia
     include synapse
     include terminator
-    include vagrant
     include vlc
 }
