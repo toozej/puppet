@@ -1,41 +1,30 @@
-exec { "update_apt":
-    command => "apt-get update",
-    user => root;
-}
-
-package { "python-software-properties":
-    ensure => present,
-    require => [
-        Exec["update_apt"],
-    ];
-}
-
 Exec {
     path => "/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin",
 }
 
 node core {
-  include apt
-  include git
-  include python
-  include ruby
-  include vim
+	include vim
+	include bash
 }
 
-node base inherits core {
-  include bash
+node server inherits core {
+	include apache2
 }
 
-node server inherits base {
-  include apache2
+node mediaserver inherits core {
+	include subsonic
 }
 
-node gui inherits base {
-}
-
-node laptop inherits gui {
-  include cheese
+node gui inherits core {
+	include i3-wm
+	include chromium
+	include firefox
 }
 
 node desktop inherits gui {
+	include vlc
+}
+
+node dev inherits desktop {
+	include gvim
 }

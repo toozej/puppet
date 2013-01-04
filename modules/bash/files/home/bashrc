@@ -1,107 +1,205 @@
-# ~/.bashrc: executed by bash(1) for non-login shells.
-# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
-# for examples
+# /etc/bash/bashrc
+#
+# Test
+#
+# This file is sourced by all *interactive* bash shells on startup,
+# including some apparently interactive shells such as scp and rcp
+# that can't tolerate any output.  So make sure this doesn't display
+# anything or bad things will happen !
+PS1_art="$>"
 
-# If not running interactively, don't do anything
-[ -z "$PS1" ] && return
+# Test for an interactive shell.  There is no need to set anything
+# past this point for scp and rcp, and it's important to refrain from
+# outputting anything in those cases.
 
-# don't put duplicate lines in the history. See bash(1) for more options
-# don't overwrite GNU Midnight Commander's setting of `ignorespace'.
-export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
-# ... or force ignoredups and ignorespace
-export HISTCONTROL=ignoreboth
+if [[ $- != *i* ]] ; then
+	# Shell is non-interactive.  Be done now!
+	return
+fi
 
-# append to the history file, don't overwrite it
-shopt -s histappend
-
-# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
-
-# check the window size after each command and, if necessary,
-# update the values of LINES and COLUMNS.
+# Bash won't get SIGWINCH if another process is in the foreground.
+# Enable checkwinsize so that bash will check the terminal size when
+# it regains control.  #65623
+# http://cnswww.cns.cwru.edu/~chet/bash/FAQ (E11)
 shopt -s checkwinsize
 
-# make less more friendly for non-text input files, see lesspipe(1)
-#[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+# Enable history appending instead of overwriting.  #139609
+shopt -s histappend
 
-# set variable identifying the chroot you work in (used in the prompt below)
-if [ -z "$debian_chroot" ] && [ -r /etc/debian_chroot ]; then
-    debian_chroot=$(cat /etc/debian_chroot)
-fi
-
-# set a fancy prompt (non-color, unless we know we "want" color)
-case "$TERM" in
-    xterm-color) color_prompt=yes;;
+# Change the window title of X terminals 
+case ${TERM} in
+	xterm*|rxvt*|Eterm|aterm|kterm|gnome*|interix)
+		PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME%%.*}:${PWD/$HOME/~}\007"'
+		;;
+	screen)
+		PROMPT_COMMAND='echo -ne "\033_${USER}@${HOSTNAME%%.*}:${PWD/$HOME/~}\033\\"'
+		;;
 esac
 
-# uncomment for a colored prompt, if the terminal has the capability; turned
-# off by default to not distract the user: the focus in a terminal window
-# should be on the output of commands, not on the prompt
-#force_color_prompt=yes
+use_color=false
 
-if [ -n "$force_color_prompt" ]; then
-    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
-	# We have color support; assume it's compliant with Ecma-48
-	# (ISO/IEC-6429). (Lack of such support is extremely rare, and such
-	# a case would tend to support setf rather than setaf.)
-	color_prompt=yes
-    else
-	color_prompt=
-    fi
-fi
+# Set colorful PS1 only on colorful terminals.
+# dircolors --print-database uses its own built-in database
+# instead of using /etc/DIR_COLORS.  Try to use the external file
+# first to take advantage of user additions.  Use internal bash
+# globbing instead of external grep binary.
+safe_term=${TERM//[^[:alnum:]]/?}   # sanitize TERM
+match_lhs=""
+[[ -f ~/.dir_colors   ]] && match_lhs="${match_lhs}$(<~/.dir_colors)"
+[[ -f /etc/DIR_COLORS ]] && match_lhs="${match_lhs}$(</etc/DIR_COLORS)"
+[[ -z ${match_lhs}    ]] \
+	&& type -P dircolors >/dev/null \
+	&& match_lhs=$(dircolors --print-database)
+[[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] && use_color=true
 
-if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-else
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
-fi
-unset color_prompt force_color_prompt
-
-# If this is an xterm set the title to user@host:dir
-case "$TERM" in
-xterm*|rxvt*)
-    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
-    ;;
-*)
-    ;;
-esac
-
-# Alias definitions.
-# You may want to put all your additions into a separate file like
-# ~/.bash_aliases, instead of adding them here directly.
-# See /usr/share/doc/bash-doc/examples in the bash-doc package.
-
-#if [ -f ~/.bash_aliases ]; then
-#    . ~/.bash_aliases
-#fi
-
-# enable color support of ls and also add handy aliases
-if [ -x /usr/bin/dircolors ]; then
-    eval "`dircolors -b`"
-    alias ls='ls --color=auto'
-    alias dir='dir --color=auto'
-    alias vdir='vdir --color=auto'
-
-    alias grep='grep --color=auto'
-    alias fgrep='fgrep --color=auto'
-    alias egrep='egrep --color=auto'
-fi
-
-# enable programmable completion features (you don't need to enable
-# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
-# sources /etc/bash.bashrc).
-if [ -f /etc/bash_completion ]; then
-    . /etc/bash_completion
-fi
-
-# Run ls after every cd
-cd(){
-	if [ -n "$1" ];
-	then
-		builtin cd "$@" && ls
-	else
-		builtin cd ~ && ls
+if ${use_color} ; then
+	# Enable colors for ls, etc.  Prefer ~/.dir_colors #64489
+	if type -P dircolors >/dev/null ; then
+		if [[ -f ~/.dir_colors ]] ; then
+			eval $(dircolors -b ~/.dir_colors)
+		elif [[ -f /etc/DIR_COLORS ]] ; then
+			eval $(dircolors -b /etc/DIR_COLORS)
+		fi
 	fi
+
+	if [[ ${EUID} == 0 ]] ; then
+		PS1="\[\e[1;31m\]\u@\h\[\033[01;34m\] \W \\$ \[\033[00m\]\[\e[1;31m\] "
+	else
+		PS1="\[\033[01;32m\]\h\[\033[01;34m\] \t \w ${PS1_art}\[\033[00m\] "
+
+	fi
+
+	alias ls='ls --color=auto'
+	alias grep='grep --color=always'
+else
+	if [[ ${EUID} == 0 ]] ; then
+		# show root@ when we don't have colors
+		PS1='\u@\h \W \& '
+	else
+		PS1='\h \t \w ${PS1_art}'
+	fi
+fi
+
+#
+# function declarations
+#
+
+# create archives out of folders
+mktar() { tar cvf  "${1%%/}.tar"     "${1%%/}/"; }
+mktgz() { tar cvzf "${1%%/}.tar.gz"  "${1%%/}/"; }
+mktbz() { tar cvjf "${1%%/}.tar.bz2" "${1%%/}/"; }
+
+#extract archives
+extract () {
+    if [ -f $1 ] ; then
+        case $1 in
+            *.tar.bz2)   tar xvjf $1        ;;
+            *.tar.gz)    tar xvzf $1     ;;
+            *.bz2)       bunzip2 $1       ;;
+            *.rar)       unrar x $1     ;;
+            *.gz)        gunzip $1     ;;
+            *.tar)       tar xvf $1        ;;
+            *.tbz2)      tar xvjf $1      ;;
+            *.tgz)       tar xvzf $1       ;;
+            *.zip)       unzip $1     ;;
+            *.Z)         uncompress $1  ;;
+            *.7z)        7z x $1    ;;
+            *)           echo "'$1' cannot be extracted via >extract<" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
 }
 
-alias term1='rdesktop -g 800x600 nws-term1.nws.oregonstate.edu'
-alias ruby19='ruby'
+# cleanup
+cleanup () {
+    echo -e "-->> Cleaning Thumbnails <<--"
+    sudo rm ~/.thumbnails/*
+    sudo rm /root/.thumbnails/*
+    echo "-->> Removing Flash Player cache <<--"
+    sudo rm ~/.adobe/*
+    sudo rm /root/.adobe/*
+    sudo rm ~/.macromedia/*
+    sudo rm /root/.macromedia/*
+    echo "-->> Cleaning Cache <<--"
+    sudo rm ~/.cache/*
+    sudo rm /root/.cache/*
+    echo "-->> Cleaning Trash <<--"
+    sudo rm ~/.local/share/Trash/*
+    sudo rm /root/.local/share/Trash/*
+    sudo rm /tmp/*
+    echo -e "DONE!"
+}
+
+#netinfo - shows network information for your system
+netinfo ()
+{
+echo "--------------- Network Information ---------------"
+/sbin/ifconfig | awk /'inet addr/ {print $2}'
+/sbin/ifconfig | awk /'Bcast/ {print $3}'
+/sbin/ifconfig | awk /'inet addr/ {print $4}'
+/sbin/ifconfig | awk /'HWaddr/ {print $4,$5}'
+myip=`lynx -dump -hiddenlinks=ignore -nolist http://checkip.dyndns.org:8245/ | sed '/^$/d; s/^[ ]*//g; s/[ ]*$//g' `
+echo "${myip}"
+echo "---------------------------------------------------"
+}
+
+#setup ssh agent for non-root logins
+if [[ ${EUID} -ne 0 ]] ; then
+	SSH_ENV="$HOME/.ssh/environment"
+
+	function start_agent {
+    	echo "Initialising new SSH agent..."
+		/usr/bin/ssh-agent | sed 's/^echo/#echo/' > "${SSH_ENV}"
+		echo succeeded
+		chmod 600 "${SSH_ENV}"
+		 . "${SSH_ENV}" > /dev/null
+		/usr/bin/ssh-add;
+	}
+
+	# Source SSH settings, if applicable
+
+	if [ -f "${SSH_ENV}" ]; then
+		 . "${SSH_ENV}" > /dev/null
+		#ps ${SSH_AGENT_PID} doesn't work under cywgin
+		ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ > /dev/null || {
+			start_agent;
+		}
+	else
+		start_agent;
+	fi
+fi
+
+#autocomplete
+complete -cf sudo
+complete -cf man
+
+# dircolors
+EDITOR=vim
+PATH=$PATH:/sbin/
+
+# git settings
+GIT_COMMITER_NAME="toozej"
+GIT_COMMITER_EMAIL="toozej@gmail.com"
+GIT_AUTHOR_NAME="James Tooze"
+GIT_AUTHOR_EMAIL="toozej@gmail.com"
+
+
+unset use_color safe_term match_lhs
+alias d='ls -l | grep -E ^d'
+alias f='ls -l | grep -E ^[^d]'
+alias ll='ls -lah --color=always'
+alias sl='ls'
+alias lsg='ls -lah --color=always | grep'
+alias dud="$HOME/.file_usage"
+alias pyclean="rm *.pyc"
+alias assh="ssh -A"
+alias :q="exit"
+alias cpp="rsync --partial --progress --append --rsh=ssh -r -h "
+alias mvp="rsync --partial --progress --append --rsh=ssh -r -h --remove-sent-files"
+alias shut="sudo poweroff"
+alias susp="sudo pm-suspend"
+alias sshfsenzo="sshfs -p 2251 james@toozej.com:/home/james/Dropbox ~/sshfs"
+alias sshfsjason="sshfs -p 2273 james@toozinator.kicks-ass.net:/media/dropbox/Dropbox/ ~/sshfs"
+alias sshfsaugust="sshfs -p 2280 james@192.168.1.180:/home/james/ ~/sshfs"
+alias usshfs="sudo umount sshfs"

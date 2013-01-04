@@ -31,10 +31,10 @@ class vim {
         ensure => directory,
     }
 
-    file {"$USER_DIR/.vim/ftdetect":
+    file {"$USER_DIR/.vim/ftplugin":
         ensure => directory,
         recurse => true,
-        source => "$PUPPET_DIR/modules/vim/files/home/vim/ftdetect",
+        source => "$PUPPET_DIR/modules/vim/files/home/vim/ftplugin",
         owner => "$USER", group => "$USER", mode => 644;
     }
 

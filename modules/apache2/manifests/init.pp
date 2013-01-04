@@ -2,16 +2,16 @@ class apache2 {
 
     case $operatingsystem {
         debian, ubuntu: {
-            package { "apache2-dev":
+            package { "apache2":
                 ensure => present,
-                before => File["ngokevin.conf"];
+                before => File["toozej.conf"];
             }
 
-            file { "ngokevin.conf":
-                path => "/etc/apache2/sites-enabled/ngokevin.conf",
-                source => "$PUPPET_DIR/modules/apache2/files/etc/apache2/sites-enabled/ngokevin.conf",
+            file { "toozej.conf":
+                path => "/etc/apache2/sites-enabled/toozej.conf",
+                source => "$PUPPET_DIR/modules/apache2/files/etc/apache2/sites-enabled/toozej.conf",
                 owner => "root", group => "root", mode => 0644,
-                require => Package['apache2-dev'];
+                require => Package['apache2'];
             }
 
             file { "/etc/apache2/sites-available/default":
@@ -40,9 +40,9 @@ class apache2 {
             service { "apache2":
                 ensure => running,
                 enable => true,
-                require => Package['apache2-dev'],
+                require => Package['apache2'],
                 subscribe => [
-                    File['ngokevin.conf'],
+                    File['toozej.conf'],
                     File['/etc/apache2/sites-enabled/000-default'],
                 ];
             }
